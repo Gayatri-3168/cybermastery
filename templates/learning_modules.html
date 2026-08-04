@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="module-list">
+  <h2 class="page-title">🎮 Learning Modules</h2>
+
+  {% for m in missions %}
+    <div class="module-row">
+
+      <div class="module-left">
+        {{ m.name }}
+      </div>
+
+      {% if m.completed %}
+        <span class="status">✔ Completed</span>
+
+        <a href="/mission/{{ m.id }}/learn?rewatch=1" class="btn rewatch-btn">
+          🔁 Rewatch
+        </a>
+
+        <a href="/mission/{{ m.id }}/levels" class="btn start-btn">
+          🚀 Start Mission
+        </a>
+      {% else %}
+        <a href="/mission/{{ m.id }}/learn" class="btn learn-btn">
+          ▶ Start Learning
+        </a>
+      {% endif %}
+
+    </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

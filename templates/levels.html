@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="levels-page">
+
+  <div class="levels-card">
+
+    <h2 class="levels-title">{{ mission.name }} – Levels</h2>
+    <p class="levels-subtitle">Complete levels in order</p>
+
+    <div class="levels-list">
+      {% for level in levels %}
+        {% if level.open %}
+          <a href="/level/{{ level.id }}" class="level-btn">
+            ▶ Level {{ level.num }}
+          </a>
+        {% else %}
+          <div class="level-btn locked">
+            🔒 Level {{ level.num }}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}

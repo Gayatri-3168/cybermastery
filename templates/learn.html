@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% for module in modules %}
+<div class="learning-card">
+
+  <h3>{{ module.title }}</h3>
+  <p>{{ module.description }}</p>
+
+  {% if module.video_url %}
+  <div class="video-container">
+    <iframe class="video-frame"
+      src="{{ module.video_url | replace('watch?v=', 'embed/') }}"
+      allowfullscreen>
+    </iframe>
+  </div>
+  {% endif %}
+
+  <div class="action-row">
+    {% if module.id in completed_ids %}
+      <span class="status-text">✔ Completed</span>
+
+      <a href="/mission/{{ module.mission_id }}/learn?rewatch=1" class="btn rewatch-btn">
+        🔁 Rewatch
+      </a>
+
+      <a href="/missions" class="btn start-btn">
+        🚀 Start Mission
+      </a>
+    {% else %}
+      <form method="POST">
+        <input type="hidden" name="module_id" value="{{ module.id }}">
+        <button class="btn learn-btn">Mark as Completed</button>
+      </form>
+    {% endif %}
+  </div>
+
+</div>
+{% endfor %}
+
+{% endblock %}

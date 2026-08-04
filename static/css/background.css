@@ -1,0 +1,299 @@
+/* ================= BACKGROUND IMAGE STYLES ================= */
+
+/* Global background image for all pages - override main style.css */
+body {
+  background-image: url('../images/cyber-background.png') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  min-height: 100vh;
+  background-color: transparent !important;
+}
+
+/* Override dashboard page specific background */
+.dashboard-page {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+/* Remove background image from escape room pages */
+.escape-container {
+  background: #ffffff !important;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+/* Override body background for escape room pages */
+body:has(.escape-container) {
+  background-image: none !important;
+  background-color: #ffffff !important;
+}
+
+/* Remove overlay for escape room pages */
+body:has(.escape-container)::before {
+  display: none !important;
+}
+
+/* Remove background image from student leaderboard page */
+.leaderboard-page {
+  background: #ffffff !important;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+/* Override body background for student leaderboard */
+body:has(.leaderboard-page) {
+  background-image: none !important;
+  background-color: #ffffff !important;
+}
+
+/* Remove overlay for student leaderboard */
+body:has(.leaderboard-page)::before {
+  display: none !important;
+}
+
+/* Make learning modules heading clearly visible */
+.page-title {
+  color: #ffffff !important;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px 20px;
+  border-radius: 8px;
+  backdrop-filter: blur(5px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  margin-bottom: 20px;
+  display: inline-block;
+}
+
+/* Ensure module rows have proper contrast */
+.module-row {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+/* Make levels title and subtitle clearly visible */
+.levels-title {
+  color: #1e293b !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 8px 16px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  display: inline-block;
+  border: 2px solid rgba(30, 41, 59, 0.2);
+}
+
+.levels-subtitle {
+  color: #475569 !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 6px 12px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  display: inline-block;
+  border: 1px solid rgba(30, 41, 59, 0.15);
+}
+
+/* Make learning completed page white background */
+body:has(h2:contains("Learning Completed")) {
+  background-image: none !important;
+  background-color: #ffffff !important;
+}
+
+/* Remove overlay for learning completed page */
+body:has(h2:contains("Learning Completed"))::before {
+  display: none !important;
+}
+
+/* Center container for learning completed page */
+div[style*="text-align:center"] {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-radius: 12px;
+  padding: 40px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  max-width: 500px;
+  margin: 50px auto;
+}
+
+/* Make dashboard user name text white for visibility */
+.dashboard-title {
+  color: #ffffff !important;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px 20px;
+  border-radius: 8px;
+  backdrop-filter: blur(5px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Make dashboard stats text more visible */
+.dashboard-stats p {
+  color: #000000 !important;
+  text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 5px 10px;
+  border-radius: 5px;
+  margin: 5px 0;
+  backdrop-filter: blur(3px);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+/* Make XP text specifically black */
+.dashboard-stats p:has(strong:contains("XP")) {
+  color: #000000 !important;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  padding: 6px 12px;
+  border-radius: 6px;
+}
+
+/* Make rank info text black */
+.rank-info p {
+  color: #000000 !important;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.7);
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 5px 10px;
+  border-radius: 5px;
+  margin: 5px 0;
+  backdrop-filter: blur(3px);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+/* Make rank subtitle black */
+.rank-subtitle {
+  color: #000000 !important;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 3px 8px;
+  border-radius: 3px;
+  margin: 3px 0;
+  backdrop-filter: blur(3px);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+/* Overlay to improve text readability while preserving the background */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.4);
+  z-index: -1;
+}
+
+/* Ensure all containers have proper contrast with the background */
+.home-container,
+.dashboard-card,
+.auth-card,
+.auth-form,
+.learning-card,
+.missions-card,
+.levels-card,
+.leaderboard-game-container,
+.level-container,
+.video-container,
+.module-row {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+/* Dark theme containers for better contrast with background */
+.dashboard-card.dark,
+.levels-card.dark,
+.missions-card.dark {
+  background: rgba(30, 27, 75, 0.95);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(168, 85, 247, 0.3);
+  color: #e9d5ff;
+}
+
+/* Header adjustments */
+.main-header {
+  background: rgba(37, 99, 235, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Sidebar adjustments */
+.sidebar {
+  background: rgba(30, 64, 175, 0.95);
+  backdrop-filter: blur(10px);
+}
+
+/* Input field adjustments */
+input, select, textarea {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(5px);
+}
+
+/* Button hover effects with background consideration */
+button:hover,
+.btn:hover,
+.dashboard-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  body {
+    background-attachment: scroll;
+  }
+  
+  .home-container,
+  .dashboard-card,
+  .auth-card {
+    background: rgba(255, 255, 255, 0.98);
+    margin: 20px;
+  }
+}
+
+/* Make challenge complete modal heading clearly visible */
+.modal-header h2 {
+  color: #1e293b !important;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.7);
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 10px 20px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  margin: 0;
+}
+
+/* Make modal content visible */
+.modal-content {
+  background: rgba(255, 255, 255, 0.98) !important;
+  backdrop-filter: blur(15px);
+  border: 2px solid rgba(59, 130, 246, 0.4);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Make winner info text visible */
+#winner-info {
+  color: #1e293b !important;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 10px;
+  border-radius: 6px;
+  margin: 10px 0;
+}

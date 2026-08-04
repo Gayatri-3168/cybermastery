@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Escape Room Locked</title>
+
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background: linear-gradient(135deg, #1f1c2c, #928dab);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+        .card {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+            width: 420px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        h1 {
+            margin-bottom: 15px;
+            color: #ffcc00;
+        }
+
+        p {
+            font-size: 16px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            background: #6c63ff;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background: #574fd6;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>🔒 Escape Room Locked</h1>
+    <p>
+        You must <strong>complete all 10 levels</strong> in this mission  
+        before attempting the Escape Room.
+    </p>
+
+    <a href="{{ url_for('missions') }}" class="btn">
+        ⬅ Go Back to Levels
+    </a>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="leaderboard-page">
+
+  <h2 class="leaderboard-title">🏆 Employee Leaderboard</h2>
+
+  <div class="leaderboard-layout">
+
+    <!-- LEFT: USERS LIST -->
+    <div class="leaderboard-left">
+      {% for user in users %}
+     <div class="leaderboard-user {% if user.id == current_user.id %}current-user{% endif %}">
+        <span class="rank">{{ loop.index }}</span>
+        <span class="name">{{ user.username }}</span>
+        <span class="xp">{{ user.xp }} XP</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- RIGHT: USER PROGRESS -->
+    <div class="leaderboard-right">
+      <h3>Your Progress</h3>
+
+      <p>
+        Missions Completed:
+        <strong>{{ completed_missions }} / {{ total_missions }}</strong>
+      </p>
+
+      <h4>Badges Earned</h4>
+      {% if badges %}
+        <div class="badge-list">
+          {% for badge in badges %}
+            <div class="badge-item">
+              <img src="/static/images/badges/{{ badge.badge_name|lower|replace(' ', '_') }}.png" 
+                   alt="{{ badge.badge_name }}" 
+                   class="badge-image"
+                   onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+              <span class="badge-fallback">{{ badge.badge_name }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>No badges yet</p>
+      {% endif %}
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}

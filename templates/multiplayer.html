@@ -1,0 +1,1717 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="multiplayer-page">
+
+  <h2 class="multiplayer-title">🎮 Cyber Challenge Arena</h2>
+
+  <div class="multiplayer-layout">
+    
+    <!-- LEFT: CREATE CHALLENGE -->
+    <div class="multiplayer-left">
+      <h3>Create Challenge Room</h3>
+      <form id="create-challenge-form" class="challenge-form">
+        <p>Create a challenge room and share the code with another player!</p>
+        <button type="submit" class="btn btn-primary">Create Room</button>
+      </form>
+      
+      <div class="challenge-result" id="create-result"></div>
+    </div>
+
+    <!-- RIGHT: JOIN CHALLENGE -->
+    <div class="multiplayer-right">
+      <h3>Join Challenge Room</h3>
+      <form id="join-challenge-form" class="challenge-form">
+        <div class="form-group">
+          <label for="challenge_code">Challenge Code:</label>
+          <input type="text" id="challenge_code" name="challenge_code" placeholder="Enter 6-character code..." maxlength="6" required>
+        </div>
+        
+        <button type="submit" class="btn btn-secondary">Join Room</button>
+      </form>
+      
+      <div class="challenge-result" id="join-result"></div>
+      
+      <!-- ACTIVE CHALLENGE -->
+      <div id="active-challenge" class="active-challenge" style="display: none;">
+        <h4>🎯 Active Challenge</h4>
+        <div class="challenge-info">
+          <p><strong>Code:</strong> <span id="active-code"></span></p>
+          <p><strong>Status:</strong> <span id="active-status"></span></p>
+          <p><strong>Created by:</strong> <span id="active-creator"></span></p>
+          <p><strong>Time Remaining:</strong> <span id="timer-display">--:--</span></p>
+        </div>
+        
+        <!-- MISSION GAMEPLAY -->
+        <div id="mission-gameplay" class="mission-gameplay" style="display: none;">
+          <div class="mission-header">
+            <h4>Mission <span id="current-mission-number"></span> of 10</h4>
+            <div class="progress-bar">
+              <div class="progress-fill" id="progress-fill"></div>
+            </div>
+          </div>
+          
+          <div id="mission-content" class="mission-content">
+            <!-- Mission content will be loaded here -->
+          </div>
+          
+          <div class="mission-result" id="mission-result"></div>
+        </div>
+        
+        <!-- PARTICIPANTS -->
+        <div id="participants-list" class="participants-list">
+          <h4>👥 Players</h4>
+          <div id="participants"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+let currentChallengeCode = null;
+let currentMissionNumber = 1;
+let timerInterval = null;
+let timeRemaining = 0;
+
+// Create Challenge
+document.getElementById('create-challenge-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const resultDiv = document.getElementById('create-result');
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  
+  // Show loading state
+  resultDiv.innerHTML = '<div class="loading-message">Creating challenge...</div>';
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Creating...';
+  
+  try {
+    const response = await fetch('/create-challenge', {
+      method: 'POST',
+      body: new FormData(e.target)
+    });
+    
+    const result = await response.json();
+    const resultDiv = document.getElementById('create-result');
+    
+    if (result.status === 'success') {
+      resultDiv.innerHTML = `
+        <div class="success-message">
+          ✅ ${result.message}
+          <div class="challenge-code-display">
+            <strong>Share this code:</strong> ${result.challenge_code}
+          </div>
+        </div>
+      `;
+      
+      // Show the active challenge (creator is already joined)
+      showActiveChallenge({
+        code: result.challenge_code,
+        created_by: "You",  // Simplified - the creator is always "You" for the creator
+        status: 'waiting',
+        participant_count: 1
+      });
+      
+      currentChallengeCode = result.challenge_code;
+      
+      // Start monitoring challenge status
+      startStatusMonitoring();
+      
+      // If challenge is already active, redirect to mission page
+      if (result.challenge && result.challenge.status === 'active') {
+        setTimeout(() => {
+          window.location.href = `/challenge-game/${result.challenge_code}`;
+        }, 1000);
+      }
+      
+      e.target.reset();
+      
+      // Debug: Log the challenge code
+      console.log('Challenge created with code:', result.challenge_code);
+      
+      // Restore button state
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Create Room';
+      
+    } else {
+      resultDiv.innerHTML = `
+        <div class="error-message">
+          ❌ ${result.message}
+        </div>
+      `;
+      
+      // Restore button state
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Create Room';
+    }
+  } catch (error) {
+    const resultDiv = document.getElementById('create-result');
+    resultDiv.innerHTML = `
+      <div class="error-message">
+        ❌ Failed to create challenge: ${error.message}
+      </div>
+    `;
+    
+    // Restore button state
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Create Room';
+  }
+});
+
+// Join Challenge
+document.getElementById('join-challenge-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const formData = new FormData(e.target);
+  const code = formData.get('challenge_code').toUpperCase();
+  formData.set('challenge_code', code);
+  
+  const resultDiv = document.getElementById('join-result');
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  
+  // Show loading state
+  resultDiv.innerHTML = '<div class="loading-message">Joining challenge...</div>';
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Joining...';
+  
+  await joinChallenge(code);
+  
+  // Restore button state
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Join Room';
+});
+
+async function joinChallenge(code) {
+  try {
+    const response = await fetch(`/join-challenge/${code}`, {
+      method: 'POST',
+      body: new FormData()
+    });
+    
+    const result = await response.json();
+    const resultDiv = document.getElementById('join-result');
+    
+    if (result.status === 'success') {
+      resultDiv.innerHTML = `
+        <div class="success-message">
+          ✅ ${result.message}
+        </div>
+      `;
+      
+      // Show active challenge
+      showActiveChallenge(result.challenge);
+      currentChallengeCode = code;
+      
+      // Start monitoring challenge status
+      startStatusMonitoring();
+      
+      // If challenge is active, redirect to mission page
+      if (result.challenge.status === 'active') {
+        setTimeout(() => {
+          window.location.href = `/challenge-game/${code}`;
+        }, 1000);
+      }
+      
+      // Clear join form
+      document.getElementById('join-challenge-form').reset();
+      
+      // Debug: Log the challenge code
+      console.log('Joined challenge with code:', code);
+    } else {
+      resultDiv.innerHTML = `
+        <div class="error-message">
+          ❌ ${result.message}
+        </div>
+      `;
+    }
+  } catch (error) {
+    const resultDiv = document.getElementById('join-result');
+    resultDiv.innerHTML = `
+      <div class="error-message">
+        ❌ Failed to join challenge: ${error.message}
+      </div>
+    `;
+  }
+}
+
+// Show Active Challenge
+function showActiveChallenge(challenge) {
+  const activeDiv = document.getElementById('active-challenge');
+  activeDiv.style.display = 'block';
+  
+  document.getElementById('active-code').textContent = challenge.code;
+  document.getElementById('active-status').textContent = challenge.status;
+  document.getElementById('active-creator').textContent = challenge.created_by;
+  
+  // Load participants
+  loadParticipants();
+  
+  // If challenge is active, start gameplay
+  if (challenge.status === 'active') {
+    startGameplay();
+  }
+}
+
+// Start Gameplay
+async function startGameplay() {
+  const gameplayDiv = document.getElementById('mission-gameplay');
+  gameplayDiv.style.display = 'block';
+  
+  await loadMission(1);
+}
+
+// Load Mission
+async function loadMission(missionNumber) {
+  try {
+    const response = await fetch(`/get-mission/${currentChallengeCode}/${missionNumber}`);
+    const result = await response.json();
+    
+    if (result.status === 'success') {
+      displayMission(result.mission);
+    } else {
+      console.error('Failed to load mission:', result.message);
+    }
+  } catch (error) {
+    console.error('Error loading mission:', error);
+  }
+}
+
+// Display Mission
+function displayMission(mission) {
+  currentMissionNumber = mission.number;
+  
+  // Update mission number and progress
+  document.getElementById('current-mission-number').textContent = mission.number;
+  document.getElementById('progress-fill').style.width = `${(mission.number / 10) * 100}%`;
+  
+  const missionContent = document.getElementById('mission-content');
+  const missionData = mission.data;
+  
+  let missionHTML = `
+    <div class="mission-scenario">
+      <div class="scenario-header">
+        <span class="scenario-icon">🚨</span>
+        <h5>${missionData.scenario}</h5>
+      </div>
+      <div class="scenario-task">
+        <p><strong>TASK:</strong> ${missionData.task}</p>
+      </div>
+    </div>
+  `;
+  
+  // Handle different mission types with their specific content
+  if (mission.type === 'phishing_detection' && missionData.email) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>📧 Email Analysis:</h6>
+        <div class="email-content">
+          <pre>${missionData.email}</pre>
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'malware_response' && missionData.alert) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>🦠 Ransomware Alert:</h6>
+        <div class="alert-content">
+          <pre>${missionData.alert}</pre>
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'password_security' && missionData.passwords) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>🔐 Password Audit Results:</h6>
+        <div class="password-list">
+          ${missionData.passwords.map(pwd => `<div class="password-item">${pwd}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'social_engineering' && missionData.call) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>📞 Phone Call Transcript:</h6>
+        <div class="call-content">
+          <div class="call-bubble">${missionData.call}</div>
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'data_breach' && missionData.alert) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>🚨 Data Breach Alert:</h6>
+        <div class="alert-content">
+          <pre>${missionData.alert}</pre>
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'wifi_security' && missionData.networks) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>📶 Available Networks:</h6>
+        <div class="network-list">
+          ${missionData.networks.map(network => `<div class="network-item">📡 ${network}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'usb_security' && missionData.usb) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>💾 USB Device Details:</h6>
+        <div class="usb-content">
+          <pre>${missionData.usb}</pre>
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'website_spoofing' && missionData.url) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>🌐 Suspicious URL:</h6>
+        <div class="url-content">
+          <div class="url-display">${missionData.url}</div>
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'backup_recovery' && missionData.backup_status) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>💾 Backup System Status:</h6>
+        <div class="backup-content">
+          <pre>${missionData.backup_status}</pre>
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'access_control' && missionData.employee) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>👤 Employee Access Details:</h6>
+        <div class="employee-content">
+          <pre>${missionData.employee}</pre>
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'email_filtering' && missionData.emails) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>📧 Email Threat Analysis:</h6>
+        <div class="email-threat-content">
+          <pre>${missionData.emails}</pre>
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'patch_management' && missionData.alert) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>🔧 Security Alert:</h6>
+        <div class="alert-content">
+          <pre>${missionData.alert}</pre>
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'incident_response' && missionData.dashboard) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>🚨 Security Dashboard:</h6>
+        <div class="dashboard-content">
+          <pre>${missionData.dashboard}</pre>
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'physical_security' && missionData.incident) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>🚪 Security Incident:</h6>
+        <div class="incident-content">
+          <pre>${missionData.incident}</pre>
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'cloud_security' && missionData.bucket) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>☁️ Cloud Storage Alert:</h6>
+        <div class="bucket-content">
+          <pre>${missionData.bucket}</pre>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Add answer options
+  if (missionData.options) {
+    missionHTML += `
+      <form id="mission-form" class="mission-form">
+        <div class="options-grid">
+          ${missionData.options.map((option, index) => `
+            <label class="option-label">
+              <input type="radio" name="answer" value="${option}" required>
+              <span class="option-text">${option}</span>
+            </label>
+          `).join('')}
+        </div>
+        <button type="submit" class="btn btn-success">Execute Action</button>
+      </form>
+    `;
+  } else {
+    missionHTML += `
+      <form id="mission-form" class="mission-form">
+        <div class="form-group">
+          <input type="text" name="answer" placeholder="Enter your action..." required>
+        </div>
+        <button type="submit" class="btn btn-success">Execute Action</button>
+      </form>
+    `;
+  }
+  
+  missionContent.innerHTML = missionHTML;
+  
+  // Add submit handler
+  document.getElementById('mission-form').addEventListener('submit', submitMissionAnswer);
+}
+
+// Submit Mission Answer
+async function submitMissionAnswer(e) {
+  e.preventDefault();
+  
+  const formData = new FormData(e.target);
+  let answer = formData.get('answer');
+  
+  // Handle case where answer might be null or undefined
+  if (answer === null || answer === undefined) {
+    const resultDiv = document.getElementById('mission-result');
+    resultDiv.innerHTML = `
+      <div class="error-message">
+        ❌ Please select an answer before submitting
+      </div>
+    `;
+    return;
+  }
+  
+  // Convert answer to string and trim whitespace
+  answer = String(answer).trim();
+  
+  // Disable submit button
+  const submitBtn = document.getElementById('submit-btn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Submitting...';
+
+  try {
+    const response = await fetch(`/submit-mission/${currentChallengeCode}/${currentMissionNumber}`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    const result = await response.json();
+    const resultDiv = document.getElementById('mission-result');
+    
+    if (result.status === 'success') {
+      if (result.correct) {
+        resultDiv.innerHTML = `
+          <div class="success-message">
+            ✅ Correct! +1 point
+            ${result.explanation ? `<div class="explanation">${result.explanation}</div>` : ''}
+          </div>
+        `;
+      } else {
+        resultDiv.innerHTML = `
+          <div class="error-message">
+            ❌ Incorrect answer
+            ${result.explanation ? `<div class="explanation">${result.explanation}</div>` : ''}
+          </div>
+        `;
+      }
+      
+      // Update score display
+      updateScoreDisplay(result.score);
+      
+      // Load next mission or show completion
+      if (result.next_mission) {
+        setTimeout(() => {
+          loadMission(result.next_mission);
+        }, 3000);
+      } else if (result.is_completed) {
+        showCompletion();
+      }
+    } else {
+      resultDiv.innerHTML = `
+        <div class="error-message">
+          ❌ ${result.message}
+        </div>
+      `;
+    }
+  } catch (error) {
+    resultDiv.innerHTML = `
+      <div class="error-message">
+        ❌ Failed to submit answer: ${error.message}
+      </div>
+    `;
+  }
+}
+
+// Update Score Display
+function updateScoreDisplay(score) {
+  // Update XP in header if on dashboard
+  const xpElements = document.querySelectorAll('.xp');
+  xpElements.forEach(element => {
+    element.textContent = `${score} points`;
+  });
+}
+
+// Show Completion
+function showCompletion() {
+  const missionContent = document.getElementById('mission-content');
+  missionContent.innerHTML = `
+    <div class="completion-message">
+      <h4>🎉 Challenge Completed!</h4>
+      <p>You've completed all 10 missions!</p>
+      <p>Waiting for the other player to finish...</p>
+    </div>
+  `;
+}
+
+// Load Participants
+async function loadParticipants() {
+  try {
+    // Don't try to load if no challenge code is set
+    if (!currentChallengeCode) {
+      return;
+    }
+    
+    const response = await fetch(`/challenge-status/${currentChallengeCode}`);
+    const result = await response.json();
+    
+    if (result.status === 'success') {
+      const participantsDiv = document.getElementById('participants');
+      const participants = result.participants;
+      
+      if (participants.length === 0) {
+        participantsDiv.innerHTML = '<p class="no-participants">No participants yet</p>';
+      } else {
+        participantsDiv.innerHTML = participants.map(p => `
+          <div class="participant">
+            <span class="participant-name">${p.username}</span>
+            <div class="participant-stats">
+              <span class="score">Score: ${p.score}</span>
+              <span class="mission">Mission: ${p.current_mission}/10</span>
+              ${p.is_completed ? '<span class="completed">✅ Completed</span>' : ''}
+            </div>
+          </div>
+        `).join('');
+      }
+      
+      // Update timer if challenge is active
+      if (result.challenge.status === 'active' && result.challenge.time_remaining !== null) {
+        timeRemaining = result.challenge.time_remaining;
+        updateTimerDisplay();
+      }
+      
+      // Check if challenge became active and start gameplay
+      if (result.challenge.status === 'active' && document.getElementById('mission-gameplay').style.display === 'none') {
+        // Redirect to mission game page when challenge becomes active
+        window.location.href = `/challenge-game/${currentChallengeCode}`;
+      }
+      
+      // Update status display
+      const statusElement = document.getElementById('active-status');
+      if (statusElement) {
+        statusElement.textContent = result.challenge.status.charAt(0).toUpperCase() + result.challenge.status.slice(1);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load participants:', error);
+  }
+}
+
+// Start Status Monitoring
+function startStatusMonitoring() {
+  // Don't start monitoring if no challenge code is set
+  if (!currentChallengeCode) {
+    return;
+  }
+  
+  loadParticipants(); // Initial load
+  setInterval(loadParticipants, 5000); // Update every 5 seconds
+  
+  // Start timer if challenge is active
+  if (timerInterval) {
+    clearInterval(timerInterval);
+  }
+  timerInterval = setInterval(updateTimer, 1000); // Update timer every second
+}
+
+// Update Timer
+function updateTimer() {
+  // Don't try to update if timeRemaining is not set
+  if (timeRemaining === undefined || timeRemaining === null || timeRemaining <= 0) {
+    return;
+  }
+  
+  timeRemaining--;
+  updateTimerDisplay();
+  
+  if (timeRemaining <= 0) {
+    clearInterval(timerInterval);
+    showTimeUp();
+  }
+}
+
+// Update Timer Display
+function updateTimerDisplay() {
+  // Don't try to update if timeRemaining is not set
+  if (timeRemaining === undefined || timeRemaining === null) {
+    return;
+  }
+  
+  const minutes = Math.floor(timeRemaining / 60);
+  const seconds = timeRemaining % 60;
+  const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  
+  const timerElement = document.getElementById('timer-display');
+  if (timerElement) {
+    timerElement.textContent = display;
+    
+    // Add warning class when time is running low
+    if (timeRemaining < 60) {
+      timerElement.classList.add('timer-warning');
+    } else {
+      timerElement.classList.remove('timer-warning');
+    }
+  }
+}
+
+// Show Time Up
+function showTimeUp() {
+  const timerElement = document.getElementById('timer-display');
+  if (timerElement) {
+    timerElement.textContent = "TIME'S UP!";
+    timerElement.classList.add('timer-expired');
+  }
+  
+  // Disable all mission forms
+  const forms = document.querySelectorAll('#mission-form');
+  forms.forEach(form => {
+    const button = form.querySelector('button');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Time Expired';
+    }
+  });
+}
+
+// Start Gameplay
+function startGameplay() {
+  // Initialize timer
+  timeRemaining = 300; // 5 minutes
+  updateTimerDisplay();
+  
+  // Show mission gameplay
+  document.getElementById('mission-gameplay').style.display = 'block';
+}
+
+</script>
+
+<style>
+.multiplayer-page {
+  min-height: 100vh;
+  background: #f8fafc;
+  padding: 40px 20px;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.multiplayer-title {
+  text-align: center;
+  color: #1f2937;
+  font-size: 36px;
+  font-weight: 700;
+  margin-bottom: 40px;
+  text-shadow: none;
+  letter-spacing: 2px;
+  position: relative;
+}
+
+.multiplayer-title::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 3px;
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+  border-radius: 2px;
+}
+
+.multiplayer-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.multiplayer-left, .multiplayer-right {
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 30px;
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.multiplayer-left:hover, .multiplayer-right:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+}
+
+.multiplayer-left::before, .multiplayer-right::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+  border-radius: 20px;
+  pointer-events: none;
+}
+
+.multiplayer-left h3, .multiplayer-right h3 {
+  color: #1f2937;
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  text-align: center;
+  position: relative;
+}
+
+.multiplayer-left h3::after, .multiplayer-right h3::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 2px;
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+}
+
+.challenge-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #374151;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-group input {
+  padding: 15px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 15px;
+  background: rgba(255,255,255,0.9);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+  background: rgba(255,255,255,1);
+}
+
+.form-group input::placeholder {
+  color: #9ca3af;
+}
+
+.btn {
+  padding: 15px 30px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2));
+  transition: left 0.3s ease;
+}
+
+.btn:hover::before {
+  left: 100%;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  box-shadow: 0 4px 15px rgba(59,130,246,0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59,130,246,0.4);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+  color: white;
+  box-shadow: 0 4px 15px rgba(107,114,128,0.3);
+}
+
+.btn-secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(107,114,128,0.4);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  box-shadow: 0 4px 15px rgba(34,197,94,0.3);
+}
+
+.btn-success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(34,197,94,0.4);
+}
+
+.challenge-result {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.loading-message {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 500;
+  animation: pulse 1.5s infinite;
+}
+
+.success-message {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  border: 1px solid #16a34a;
+  box-shadow: 0 4px 15px rgba(34,197,94,0.2);
+  animation: slideIn 0.5s ease-out;
+}
+
+.error-message {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border: 1px solid #dc2626;
+  box-shadow: 0 4px 15px rgba(239,68,68,0.2);
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.challenge-code-display {
+  margin-top: 15px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
+  border-radius: 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-align: center;
+  border: 2px dashed rgba(59,130,246,0.3);
+  color: #1e40af;
+  animation: glow 2s ease-in-out infinite;
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(59,130,246,0.3); }
+  50% { box-shadow: 0 0 20px rgba(59,130,246,0.5); }
+}
+
+.active-challenge {
+  border: 2px solid #e5e7eb;
+  background: rgba(255,255,255,0.95);
+  margin-top: 20px;
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+}
+
+.active-challenge::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #2563eb, #1d4ed8);
+  border-radius: 20px 20px 0 0;
+}
+
+.challenge-info {
+  padding: 20px;
+  background: rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.challenge-info p {
+  margin: 8px 0;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.challenge-info strong {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.timer-display {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 8px rgba(59,130,246,0.3);
+  min-width: 80px;
+  text-align: center;
+}
+
+.timer-warning {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #1f2937;
+  animation: pulse 1s infinite;
+  box-shadow: 0 2px 8px rgba(245,158,11,0.3);
+}
+
+.timer-expired {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  animation: none;
+  box-shadow: 0 2px 8px rgba(239,68,68,0.3);
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.mission-gameplay {
+  margin-top: 20px;
+  padding: 25px;
+  background: rgba(255,255,255,0.95);
+  border-radius: 15px;
+  border: 2px solid #e5e7eb;
+}
+
+.mission-header {
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+.mission-header h4 {
+  color: #1f2937;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  transition: width 0.5s ease;
+  border-radius: 10px;
+  position: relative;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.mission-content {
+  margin-bottom: 20px;
+  min-height: 200px;
+}
+
+.mission-scenario {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: white;
+  padding: 25px;
+  border-radius: 15px;
+  margin-bottom: 20px;
+  border: 2px solid #b91c1c;
+  box-shadow: 0 4px 15px rgba(220,38,38,0.3);
+  position: relative;
+}
+
+.mission-scenario::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+  border-radius: 13px 13px 0 0;
+}
+
+.scenario-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  gap: 12px;
+}
+
+.scenario-icon {
+  font-size: 28px;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-10px); }
+  60% { transform: translateY(-5px); }
+}
+
+.scenario-header h5 {
+  color: white;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.scenario-task p {
+  margin: 0;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.scenario-task strong {
+  color: #fef3c7;
+}
+
+.mission-content-box {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.mission-content-box h6 {
+  color: #374151;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mission-content-box h6::before {
+  content: '📋';
+  font-size: 18px;
+}
+
+.email-content {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.email-content pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: #495057;
+  margin: 0;
+  background: #ffffff;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+.alert-content pre,
+.backup-content pre,
+.employee-content pre,
+.email-threat-content pre,
+.dashboard-content pre,
+.incident-content pre,
+.bucket-content pre,
+.usb-content pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: #495057;
+  margin: 0;
+  background: #ffffff;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+.password-list,
+.network-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.password-item,
+.network-item {
+  background: #ffffff;
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: #495057;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+}
+
+.password-item:hover,
+.network-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.call-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 25px;
+}
+
+.call-bubble {
+  background: #e3f2fd;
+  color: #1565c0;
+  padding: 20px 25px;
+  border-radius: 20px 20px 20px 4px;
+  max-width: 80%;
+  font-style: italic;
+  border: 2px solid #90caf9;
+  box-shadow: 0 4px 15px rgba(33, 150, 243,0.2);
+}
+
+.url-content {
+  text-align: center;
+}
+
+.url-display {
+  background: #fff3cd;
+  color: #856404;
+  padding: 15px;
+  border-radius: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 15px;
+  border: 1px solid #ffeaa7;
+  word-break: break-all;
+  box-shadow: 0 2px 8px rgba(245, 158, 11,0.2);
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.option-label {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.option-label::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(59,130,246,0.1));
+  transition: left 0.3s ease;
+}
+
+.option-label:hover::before {
+  left: 100%;
+}
+
+.option-label:hover {
+  background: rgba(59,130,246,0.1);
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59,130,246,0.2);
+}
+
+.option-label input[type="radio"] {
+  margin-right: 12px;
+  width: 18px;
+  height: 18px;
+  accent-color: #3b82f6;
+}
+
+.option-text {
+  color: #1f2937;
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.mission-form .form-group {
+  margin-bottom: 20px;
+}
+
+.mission-form input[type="text"] {
+  width: 100%;
+  padding: 15px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 15px;
+  background: rgba(255,255,255,0.9);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.mission-form input[type="text"]:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+  background: rgba(255,255,255,1);
+}
+
+.explanation {
+  margin-top: 15px;
+  padding: 15px;
+  background: rgba(34,197,94,0.1);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1f2937;
+  border-left: 4px solid #22c55e;
+}
+
+.completion-message {
+  text-align: center;
+  padding: 40px;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  border-radius: 15px;
+  font-size: 18px;
+  font-weight: 600;
+  box-shadow: 0 8px 25px rgba(34,197,94,0.3);
+  animation: celebration 0.5s ease-out;
+}
+
+@keyframes celebration {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.participants-list {
+  margin-top: 25px;
+  padding: 20px;
+  background: rgba(255,255,255,0.95);
+  border-radius: 15px;
+  border: 2px solid #e5e7eb;
+}
+
+.participants-list h4 {
+  color: #1f2937;
+  margin-bottom: 15px;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.participants-list h4::before {
+  content: '👥';
+  font-size: 20px;
+}
+
+.participant {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  margin-bottom: 10px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+  border-left: 4px solid #3b82f6;
+  transition: all 0.3s ease;
+}
+
+.participant:hover {
+  background: rgba(255,255,255,0.2);
+  transform: translateX(5px);
+}
+
+.participant-name {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 15px;
+}
+
+.participant-stats {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  align-items: center;
+}
+
+.score {
+  background: #3b82f6;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(59,130,246,0.2);
+}
+
+.mission {
+  background: #6b7280;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(107,114,128,0.2);
+}
+
+.completed {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(34,197,94,0.2);
+}
+
+.no-participants {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 30px;
+  font-size: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .multiplayer-page {
+    padding: 20px 15px;
+  }
+  
+  /* Change to single column layout on mobile */
+  .multiplayer-layout {
+    grid-template-columns: 1fr; /* Single column */
+    gap: 20px;
+  }
+  
+  .multiplayer-left, .multiplayer-right {
+    padding: 15px;
+    background: rgba(255,255,255,0.95); /* Same as desktop */
+    backdrop-filter: blur(20px); /* Same as desktop */
+    border-radius: 20px; /* Same as desktop */
+  }
+  
+  .multiplayer-title {
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+  
+  .multiplayer-left h3, .multiplayer-right h3 {
+    font-size: 18px;
+    margin-bottom: 12px;
+    color: #1f2937; /* Same as desktop */
+  }
+  
+  .challenge-form {
+    gap: 12px;
+  }
+  
+  .btn {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  
+  .challenge-code-display {
+    font-size: 18px;
+    padding: 12px;
+  }
+  
+  .mission-gameplay {
+    padding: 15px;
+  }
+  
+  .mission-header h4 {
+    font-size: 16px;
+  }
+  
+  .progress-bar {
+    height: 6px;
+  }
+  
+  .mission-question {
+    font-size: 14px;
+  }
+  
+  .answer-option {
+    padding: 10px;
+    font-size: 13px;
+  }
+  
+  .mission-header h4 {
+    font-size: 16px;
+  }
+  
+  .scenario-header h5 {
+    font-size: 16px;
+  }
+  
+  .scenario-icon {
+    font-size: 20px;
+  }
+  
+  .mission-scenario {
+    padding: 15px;
+  }
+  
+  .mission-content-box {
+    padding: 12px;
+  }
+}
+
+/* Small mobile phones */
+@media (max-width: 480px) {
+  .multiplayer-page {
+    padding: 15px 10px;
+  }
+  
+  /* Keep single column layout even on small phones */
+  .multiplayer-layout {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .multiplayer-left, .multiplayer-right {
+    padding: 12px;
+    background: rgba(255,255,255,0.95); /* Same as desktop */
+    backdrop-filter: blur(20px); /* Same as desktop */
+    border-radius: 20px; /* Same as desktop */
+  }
+  
+  .multiplayer-title {
+    font-size: 20px;
+  }
+  
+  .multiplayer-left h3, .multiplayer-right h3 {
+    font-size: 16px;
+    color: #1f2937; /* Same as desktop */
+  }
+  
+  .btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  .challenge-code-display {
+    font-size: 16px;
+    padding: 10px;
+  }
+  
+  .participant {
+    padding: 8px 12px;
+  }
+  
+  .participant-name {
+    font-size: 13px;
+  }
+}
+</style>
+
+{% endblock %}
+  
+  .score, .mission, .completed {
+    padding: 2px 4px;
+    font-size: 10px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .multiplayer-page {
+    background: linear-gradient(135deg, #1e293b 0%, #374151 50%, #111827 100%);
+  }
+  
+  .multiplayer-left, .multiplayer-right {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: rgba(255,255,255,0.1);
+  }
+  
+  .multiplayer-left h3, .multiplayer-right h3 {
+    color: #f3f4f6;
+  }
+  
+  .challenge-info p {
+    color: #e5e7eb;
+    border-bottom-color: rgba(255,255,255,0.1);
+  }
+  
+  .challenge-info strong {
+    color: #60a5fa;
+  }
+  
+  .form-group label {
+    color: #d1d5db;
+  }
+  
+  .form-group input {
+    background: rgba(255,255,255,0.1);
+    border-color: #4b5563;
+    color: #f3f4f6;
+  }
+  
+  .form-group input::placeholder {
+    color: #9ca3af;
+  }
+  
+  .mission-content-box {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: rgba(255,255,255,0.1);
+    color: #e5e7eb;
+  }
+  
+  .mission-content-box h6 {
+    color: #d1d5db;
+  }
+  
+  .email-content pre,
+  .alert-content pre,
+  .backup-content pre,
+  .employee-content pre,
+  .email-threat-content pre,
+  .dashboard-content pre,
+  .incident-content pre,
+  .bucket-content pre,
+  .usb-content pre {
+    background: rgba(30, 41, 59, 0.95);
+    color: #e5e7eb;
+    border-color: rgba(255,255,255,0.1);
+  }
+  
+  .password-item,
+  .network-item {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: rgba(255,255,255,0.1);
+    color: #e5e7eb;
+  }
+  
+  .option-label {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.1);
+  }
+  
+  .option-label:hover {
+    background: rgba(59,130,246,0.1);
+    border-color: rgba(59,130,246,0.2);
+  }
+  
+  .option-text {
+    color: #f3f4f6;
+  }
+  
+  .explanation {
+    background: rgba(34,197,94,0.1);
+    border-left-color: #22c55e;
+    color: #e5e7eb;
+  }
+}
+</style>

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="auth-container">
+
+  <form class="auth-form" method="POST">
+
+    <h2>🔐 Login</h2>
+
+    <div class="form-group">
+      <input type="email" name="email" placeholder="Email" required>
+    </div>
+
+    <div class="form-group password-box">
+      <input type="password" name="password" id="loginPassword" placeholder="Password" required>
+      <span class="eye" onclick="togglePassword()">👁</span>
+    </div>
+
+    <button type="submit" class="auth-btn">Login</button>
+
+    {% if error %}
+    <div class="auth-error">
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <p class="switch-link">
+      Don’t have an account?
+      <a href="/register">Register</a>
+    </p>
+
+  </form>
+
+</div>
+
+<script>
+function togglePassword() {
+  const p = document.getElementById("loginPassword");
+  p.type = p.type === "password" ? "text" : "password";
+}
+</script>
+
+{% endblock %}

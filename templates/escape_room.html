@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% set hide_nav = true %}
+
+{% block content %}
+
+<div class="escape-container">
+
+  <!-- TITLE -->
+  <h2 class="escape-title">🔐 Escape the Cyber Attack</h2>
+
+  <!-- PUZZLE -->
+  <div class="escape-card">
+    <p class="escape-question">
+      {{ puzzle.puzzle }}
+    </p>
+
+    <!-- FORM -->
+    <form method="POST" class="escape-form" autocomplete="off">
+      <input
+        type="text"
+        name="answer"
+        class="escape-input"
+        placeholder="Enter your solution"
+        required
+        autocomplete="off"
+      >
+
+      <button type="submit" class="escape-btn">
+        🔓 Unlock
+      </button>
+    </form>
+
+    <!-- ALREADY COMPLETED MESSAGE -->
+    {% if already_completed %}
+      <div class="escape-warning">
+        🏆 {{ message }}
+      </div>
+    {% endif %}
+
+    <!-- HINT BUTTON -->
+    <div class="hint-section">
+      <button type="button" class="hint-btn" onclick="requestHint()">
+        💡 Get Hint (-1 XP)
+      </button>
+      
+      <div id="hintBox" class="hint-box" style="display: none;">
+        <p class="hint-text">{{ hint }}</p>
+        <small class="hint-cost">⚠️ You lost 1 XP for this hint</small>
+      </div>
+    </div>
+
+    <!-- ERROR -->
+    {% if error %}
+      <div class="escape-error">
+        ❌ {{ error }}
+      </div>
+    {% endif %}
+
+    <!-- SUCCESS MESSAGE -->
+    {% if success %}
+      <div class="escape-success">
+        🎉 {{ success }}
+      </div>
+      
+      <!-- BACK TO MISSIONS BUTTON -->
+      {% if show_back_button %}
+        <div class="back-to-missions">
+          <a href="/missions" class="back-btn">
+            🚀 Back to Missions
+          </a>
+        </div>
+      {% endif %}
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+function requestHint() {
+  // Reload page with hint parameter
+  window.location.href = window.location.pathname + "?hint=true";
+}
+
+function toggleHint() {
+  const box = document.getElementById("hintBox");
+  box.style.display = box.style.display === "none" ? "block" : "none";
+}
+
+// Show hint if it exists
+document.addEventListener("DOMContentLoaded", function() {
+  const hintBox = document.getElementById("hintBox");
+  const hintText = document.querySelector(".hint-text");
+  
+  if (hintText && hintText.textContent.trim() !== "") {
+    hintBox.style.display = "block";
+  }
+});
+
+// Set 10-minute timer when page loads
+let timeLeft = 600; // 10 minutes in seconds
+
+function startTimer() {
+    const timerElement = document.getElementById('timer');
+    const attemptsCounter = document.getElementById('attemptsCounter');
+    
+    if (timerElement && attemptsCounter) {
+        // Update display
+        timerElement.textContent = formatTime(timeLeft);
+        attemptsCounter.textContent = '3'; // Reset to 3 attempts for escape rooms
+        
+        // Start countdown
+        const countdownInterval = setInterval(() => {
+            timeLeft--;
+            
+            if (timeLeft <= 0) {
+                clearInterval(countdownInterval);
+                timerElement.textContent = "00:00";
+                timerElement.style.color = "#ff4444"; // Red when time's up
+            } else {
+                timerElement.textContent = formatTime(timeLeft);
+                // Change color based on time remaining
+                if (timeLeft <= 60) {
+                    timerElement.style.color = "#ff6b6b"; // Orange - 1 minute left
+                } else if (timeLeft <= 180) {
+                    timerElement.style.color = "#ffd700"; // Yellow - 3 minutes left
+                } else {
+                    timerElement.style.color = "#28a745"; // Green - plenty of time
+                }
+            }
+            
+            // Update attempts counter display
+            const currentAttempts = parseInt(attemptsCounter.textContent) - 1;
+            if (currentAttempts >= 0) {
+                attemptsCounter.textContent = currentAttempts;
+                
+                // Show warning when only 1 attempt left
+                if (currentAttempts === 1) {
+                    attemptsCounter.style.color = "#ff6b6b"; // Orange warning
+                } else if (currentAttempts === 2) {
+                    attemptsCounter.style.color = "#ffd700"; // Yellow caution
+                } else {
+                    attemptsCounter.style.color = "#28a745"; // Green safe
+                }
+            }
+        }, 1000);
+    }
+}
+
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+function updateAttemptsDisplay() {
+    const attemptsCounter = document.getElementById('attemptsCounter');
+    const currentAttempts = parseInt(attemptsCounter.textContent) - 1;
+    
+    if (currentAttempts >= 0) {
+        attemptsCounter.textContent = currentAttempts;
+        
+        // Color code based on attempts remaining
+        if (currentAttempts === 1) {
+            attemptsCounter.style.color = "#ff6b6b"; // Orange warning
+        } else if (currentAttempts === 2) {
+            attemptsCounter.style.color = "#ffd700"; // Yellow caution
+        } else {
+            attemptsCounter.style.color = "#28a745"; // Green safe
+        }
+    }
+}
+
+// Start timer when page loads
+document.addEventListener('DOMContentLoaded', startTimer);
+
+// Update attempts when form is submitted
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('.escape-form');
+    if (form) {
+        form.addEventListener('submit', function() {
+            updateAttemptsDisplay();
+        });
+    }
+});
+</script>
+
+{% endblock %}

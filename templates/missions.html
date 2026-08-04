@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="missions-page">
+  <div class="missions-card">
+
+    <h2 class="missions-title">🎮 Missions</h2>
+
+    <div class="mission-list">
+
+      {% for m in missions %}
+        {% if m.unlocked %}
+
+          <div class="mission-row-wrapper" 
+               data-searchable 
+               data-name="{{ m.name.lower() }}" 
+               data-difficulty="{{ ['easy', 'medium', 'hard'][m.order % 3] }}" 
+               data-category="missions"
+               data-completed="{{ 'true' if m.completed else 'false' }}">
+
+            <!-- MAIN MISSION -->
+            <a href="/mission/{{ m.id }}/levels" class="mission-row">
+              <img src="{{ url_for('static', filename='images/icons/game' ~ m.order ~ '.png') }}"
+                   class="mission-icon">
+              <span class="mission-name">{{ m.name }}</span>
+            </a>
+
+            <!-- ESCAPE ROOM BUTTON -->
+            <a href="/escape/{{ m.id }}" class="escape-btn">
+              🔐 Escape Room
+            </a>
+
+          </div>
+
+        {% else %}
+          <div class="mission-row locked" 
+               data-searchable 
+               data-name="{{ m.name.lower() }}" 
+               data-difficulty="{{ ['easy', 'medium', 'hard'][m.order % 3] }}" 
+               data-category="missions"
+               data-completed="false">
+            <img src="{{ url_for('static', filename='images/icons/locked.png') }}"
+                 class="mission-icon">
+            <span class="mission-name">{{ m.name }} (Locked)</span>
+          </div>
+        {% endif %}
+      {% endfor %}
+
+    </div>
+  </div>
+</div>
+
+<!-- Include Features JavaScript for progress animations and notifications -->
+<script src="{{ url_for('static', filename='js/features.js') }}"></script>
+
+{% endblock %}

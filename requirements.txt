@@ -1,0 +1,8 @@
+flask
+flask-login
+flask-sqlalchemy
+pymysql
+cryptography
+gunicorn
+flask-mail
+google-genai

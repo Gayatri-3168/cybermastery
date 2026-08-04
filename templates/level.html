@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if not feedback %}
+<!-- TIMER -->
+<div class="game-timer" id="timerBox">
+  ⏱ Time Left: <span id="time">30</span>s
+</div>
+{% endif %}
+
+<div class="level-container">
+
+  <h2>🎮 Level {{ level.level_number }}</h2>
+
+  <!-- ATTEMPTS LEFT -->
+  {% if not feedback and not is_replay %}
+  <div class="attempt-box">
+    🎯 Attempts Left:
+    <span class="attempt-count">{{ attempts_left }}</span>
+  </div>
+  {% endif %}
+
+  <!-- SCENARIO -->
+  <div class="scenario-box">
+    <strong>Scenario:</strong>
+    <p>{{ level.scenario }}</p>
+  </div>
+
+  <!-- OPTIONS -->
+  {% if not feedback %}
+  <form method="POST" id="levelForm">
+    <input type="hidden" name="answer" id="answerInput">
+
+    <button type="button" data-value="A" class="option-btn">{{ level.option_a }}</button>
+    <button type="button" data-value="B" class="option-btn">{{ level.option_b }}</button>
+    <button type="button" data-value="C" class="option-btn">{{ level.option_c }}</button>
+    <button type="button" data-value="D" class="option-btn">{{ level.option_d }}</button>
+  </form>
+  {% endif %}
+
+  <!-- TIME UP -->
+  <div id="timeUpBox" class="feedback fail" style="display:none;">
+    ⏰ <strong>Time’s Up!</strong><br><br>
+    You ran out of time.<br><br>
+
+    <a href="/level/{{ level.id }}">
+      <button class="pass-btn">🔁 Retry Level</button>
+    </a>
+  </div>
+
+  <!-- ===================== -->
+  <!-- ✅ CORRECT ANSWER -->
+  <!-- ===================== -->
+  {% if feedback == "correct" %}
+  <div class="feedback success">
+    ✅ Correct Answer!<br><br>
+
+    {% if points_awarded > 0 %}
+      🎉 <strong>+{{ points_awarded }} XP Earned</strong><br><br>
+    {% else %}
+      ℹ️ No XP (Replay mode)<br><br>
+    {% endif %}
+
+    {{ level.explanation }}<br><br>
+
+    {% if is_last_level %}
+      <!-- AFTER LEVEL 10 -->
+      <a href="/missions">
+        <button class="pass-btn">🏁 Next Mission</button>
+      </a>
+    {% else %}
+      <a href="/mission/{{ level.mission_id }}/levels" class="next-btn">
+        ▶ Next Level
+      </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- ===================== -->
+  <!-- ❌ WRONG ANSWER -->
+  <!-- ===================== -->
+  {% if feedback == "wrong" %}
+  <div class="feedback fail">
+    ❌ Wrong Answer<br><br>
+
+    {% if points_awarded < 0 %}
+      ⚠️ <strong>{{ points_awarded }} XP Penalty</strong><br><br>
+    {% endif %}
+
+    Attempts Remaining: <strong>{{ attempts_left }}</strong><br><br>
+
+    {% if attempts_left > 0 %}
+      <a href="/level/{{ level.id }}">
+        <button class="pass-btn">🔁 Retry Level</button>
+      </a>
+    {% else %}
+      ❌ No attempts left.<br><br>
+      <a href="/mission/{{ level.mission_id }}/levels">
+        <button class="pass-btn">⬅ Back to Levels</button>
+      </a>
+    {% endif %}
+
+    {% if hint %}
+      <br><br>
+      <button onclick="showHint()" class="hint-btn">💡 Show Hint</button>
+
+      <div id="hint-box" class="hint-box" style="display:none;">
+        🔍 <strong>Hint:</strong><br>
+        {{ hint }}
+      </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- AUDIO -->
+<audio id="clickSound" src="{{ url_for('static', filename='sounds/click.mp3') }}"></audio>
+<audio id="successSound" src="{{ url_for('static', filename='sounds/success.mp3') }}"></audio>
+<audio id="failSound" src="{{ url_for('static', filename='sounds/fail.mp3') }}"></audio>
+<audio id="timeoutSound" src="{{ url_for('static', filename='sounds/timeout.mp3') }}"></audio>
+
+{% if not feedback %}
+<script>
+let time = 30;
+let locked = false;
+
+const timerText = document.getElementById("time");
+const optionBtns = document.querySelectorAll(".option-btn");
+const form = document.getElementById("levelForm");
+const timeUpBox = document.getElementById("timeUpBox");
+
+const timer = setInterval(() => {
+  if (locked) return;
+
+  time--;
+  timerText.innerText = time;
+
+  if (time <= 5) {
+    timerText.style.color = "red";
+    timerText.style.fontWeight = "bold";
+  }
+
+  if (time <= 0) {
+    clearInterval(timer);
+    locked = true;
+
+    document.getElementById("timeoutSound").play();
+    optionBtns.forEach(b => b.disabled = true);
+
+    form.style.display = "none";
+    document.getElementById("timerBox").style.display = "none";
+    timeUpBox.style.display = "block";
+  }
+}, 1000);
+
+optionBtns.forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (locked) return;
+
+    locked = true;
+    clearInterval(timer);
+
+    document.getElementById("clickSound").play();
+    optionBtns.forEach(b => b.disabled = true);
+
+    document.getElementById("answerInput").value = btn.dataset.value;
+    form.submit();
+  });
+});
+</script>
+{% endif %}
+
+{% if feedback == "correct" %}
+<script>document.getElementById("successSound").play();</script>
+{% elif feedback == "wrong" %}
+<script>document.getElementById("failSound").play();</script>
+{% endif %}
+
+<script>
+function showHint() {
+  const box = document.getElementById("hint-box");
+  if (box) {
+    box.style.display = "block";
+  }
+}
+</script>
+
+<style>
+.hint-box {
+  margin-top: 12px;
+  padding: 12px;
+  background: #fff3cd;
+  border-left: 5px solid #ffc107;
+  border-radius: 6px;
+  font-size: 14px;
+}
+</style>
+
+{% endblock %}

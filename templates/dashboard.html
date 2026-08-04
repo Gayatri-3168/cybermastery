@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="dashboard-page">
+
+  <div class="dashboard-card">
+
+    <h2 class="dashboard-title">
+      👋 Welcome, {{ current_user.username }}
+    </h2>
+
+    <div class="dashboard-stats">
+      <p><strong>Role:</strong> {{ current_user.role }}</p>
+      <p><strong>XP:</strong> {{ current_user.xp }}</p>
+      <div class="rank-info">
+        <p><strong>Rank:</strong> #{{ rank }}</p>
+        <p class="rank-subtitle">{{ current_user.role.title() }} Leaderboard</p>
+      </div>
+    </div>
+
+  
+
+    <!-- 🏅 BADGES SECTION -->
+    {% if badges %}
+    <div class="badges-section">
+      <h3 class="badges-title">🏅 Your Badges</h3>
+      <div class="badges-container">
+        {% for badge in badges %}
+          <div class="badge-item">
+            <img src="/static/images/badges/{{ badge.badge_name|lower|replace(' ', '_') }}.png" 
+                 alt="{{ badge.badge_name }}" 
+                 class="badge-icon"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="badge-icon fallback-icon" style="display:none;">🏆</div>
+            <div class="badge-info">
+              <div class="badge-name">{{ badge.badge_name }}</div>
+              <div class="badge-date">Earned recently</div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="badges-section">
+      <h3 class="badges-title">🏅 Your Badges</h3>
+      <div class="no-badges">
+        <p>No badges earned yet. Complete missions to earn badges!</p>
+        <div class="badge-progress">
+          <div class="badge-info">
+            <span>🎯 Complete 2 missions → Cyber Beginner</span>
+            <span>🏆 Complete 5 missions → Cyber Expert</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    
+    <div class="dashboard-actions">
+
+      {% if current_user.role == "student" %}
+        <a href="/student/leaderboard" class="dashboard-btn violet">
+          🏆 Student Leaderboard
+        </a>
+      {% elif current_user.role == "employee" %}
+        <a href="/employee/leaderboard" class="dashboard-btn violet">
+          🏆 Employee Leaderboard
+        </a>
+      {% endif %}
+
+      <a href="/learning-modules" class="dashboard-btn blue">
+        📘 Learning Modules
+      </a>
+
+      <a href="/missions" class="dashboard-btn green">
+        🚀 Start Missions
+      </a>
+    
+      
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Include Features JavaScript -->
+<script src="{{ url_for('static', filename='js/features.js') }}"></script>
+
+{% endblock %}

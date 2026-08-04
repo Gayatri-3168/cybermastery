@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CyberMastery</title>
+
+  <!-- Responsive -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Theme -->
+  <meta name="theme-color" content="#0f172a">
+
+  <!-- Main CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  
+  <!-- Background CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/background.css') }}">
+
+  <!-- PWA -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+</head>
+
+<body>
+
+<!-- 🔊 Hover Sound -->
+<audio id="hoverSound" src="{{ url_for('static', filename='sounds/hover.mp3') }}"></audio>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("button, .btn, .option-btn").forEach(btn => {
+    btn.addEventListener("mouseenter", () => {
+      const s = document.getElementById("hoverSound");
+      if (s) { s.currentTime = 0; s.play(); }
+    });
+  });
+});
+</script>
+
+<style>
+.header-nav {
+  padding: 20px !important;
+  font-size: 18px !important;
+}
+
+.header-nav .nav-link {
+  font-size: 18px !important;
+  padding: 12px 20px !important;
+}
+
+/* Centered CyberMastery heading */
+.header-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.header-center h2 {
+  margin: 0;
+  font-size: 36px; /* Increased size */
+  font-weight: 800; /* Bolder */
+  color: #ffffff; /* White color */
+  animation: titleGlow 3s ease-in-out infinite alternate;
+  text-shadow: 0 4px 20px rgba(255, 255, 255, 0.4);
+  filter: drop-shadow(0 2px 8px rgba(255, 255, 255, 0.3));
+}
+
+@keyframes titleGlow {
+  0% {
+    text-shadow: 0 4px 20px rgba(255, 255, 255, 0.4);
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    text-shadow: 0 8px 30px rgba(255, 255, 255, 0.6);
+    transform: translateY(-3px) scale(1.02);
+  }
+  100% {
+    text-shadow: 0 4px 20px rgba(255, 255, 255, 0.4);
+    transform: translateY(0px) scale(1);
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* User Profile Section in Sidebar */
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  margin-bottom: 10px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.user-details {
+  flex: 1;
+}
+
+.user-name {
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.user-role {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+/* Hamburger Menu Styles */
+.hamburger-menu {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  padding: 12px;
+  background: #ffffff;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.hamburger-menu:hover {
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.hamburger-line {
+  width: 25px;
+  height: 3px;
+  background: #1f2937;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+.hamburger-menu.active .hamburger-line:nth-child(1) {
+  transform: rotate(45deg) translate(5px, 5px);
+}
+
+.hamburger-menu.active .hamburger-line:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-menu.active .hamburger-line:nth-child(3) {
+  transform: rotate(-45deg) translate(7px, -6px);
+}
+
+/* Sidebar Styles */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: -300px;
+  width: 300px;
+  height: 100vh;
+  background: linear-gradient(135deg, #1e40af, #3730a3);
+  z-index: 9999;
+  transition: left 0.3s ease;
+  box-shadow: 2px 0 15px rgba(0, 0, 0, 0.2);
+  overflow-y: auto; /* Allow scrolling if needed */
+}
+
+.sidebar.active {
+  left: 0;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sidebar-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.sidebar-icon {
+  font-size: 24px;
+}
+
+.sidebar-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.sidebar-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-nav {
+  padding: 20px 0;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px 20px;
+  color: rgba(255, 255, 255, 0.9); /* Increased opacity */
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border-left: 3px solid transparent;
+  font-size: 16px; /* Added font size */
+  font-weight: 500; /* Added font weight */
+}
+
+.sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border-left-color: #3b82f6;
+}
+
+.link-icon {
+  font-size: 20px;
+  width: 25px;
+  text-align: center;
+}
+
+/* Overlay */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+  display: none;
+}
+
+.sidebar-overlay.active {
+  display: block;
+}
+
+/* Responsive - Hide hamburger on desktop */
+@media (min-width: 769px) {
+  .hamburger-menu {
+    display: flex; /* Always show hamburger */
+  }
+  
+  .sidebar {
+    display: block; /* Allow sidebar to be visible */
+  }
+  
+  .header-nav {
+    display: none; /* Always hide header navigation */
+  }
+  
+  .header-center {
+    justify-content: center; /* Always center */
+  }
+}
+
+/* Responsive - Show hamburger on mobile */
+@media (max-width: 768px) {
+  .header-nav {
+    display: none; /* Hide header navigation on mobile */
+  }
+  
+  .hamburger-menu {
+    display: flex;
+  }
+  
+  .sidebar {
+    display: block; /* Allow sidebar to be visible */
+  }
+  
+  .header-center {
+    justify-content: center; /* Center on mobile */
+  }
+}
+</style>
+
+<!-- ================= HAMBURGER MENU ================= -->
+<div class="hamburger-menu" id="hamburger-menu">
+  <div class="hamburger-line"></div>
+  <div class="hamburger-line"></div>
+  <div class="hamburger-line"></div>
+</div>
+
+<!-- ================= SIDEBAR ================= -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <button class="sidebar-close" onclick="toggleSidebar()">×</button>
+  </div>
+  
+  {% if current_user.is_authenticated %}
+    <div class="user-profile">
+      <div class="user-avatar">👤</div>
+      <div class="user-details">
+        <div class="user-name">{{ current_user.username }}</div>
+        <div class="user-role">{{ current_user.role|title }}</div>
+      </div>
+    </div>
+  {% endif %}
+  
+  <nav class="sidebar-nav">
+    <a href="/" class="sidebar-link">
+      <span class="link-icon">🏠</span>
+      <span>Home</span>
+    </a>
+    
+    {% if current_user.is_authenticated %}
+      <a href="/dashboard" class="sidebar-link">
+        <span class="link-icon">📊</span>
+        <span>Dashboard</span>
+      </a>
+      <a href="/missions" class="sidebar-link">
+        <span class="link-icon">🎯</span>
+        <span>Missions</span>
+      </a>
+      <a href="/multiplayer" class="sidebar-link">
+        <span class="link-icon">🎮</span>
+        <span>Challenges</span>
+      </a>
+      <a href="{% if current_user.role == 'student' %}{{ url_for('student_leaderboard') }}{% elif current_user.role == 'employee' %}{{ url_for('employee_leaderboard') }}{% else %}#{% endif %}" class="sidebar-link">
+        <span class="link-icon">🏆</span>
+        <span>Leaderboard</span>
+      </a>
+      <a href="/logout" class="sidebar-link">
+        <span class="link-icon">🚪</span>
+        <span>Logout</span>
+      </a>
+    {% else %}
+      <a href="/login" class="sidebar-link">
+        <span class="link-icon">🔐</span>
+        <span>Login</span>
+      </a>
+      <a href="/register" class="sidebar-link">
+        <span class="link-icon">📝</span>
+        <span>Register</span>
+      </a>
+    {% endif %}
+  </nav>
+</div>
+
+<!-- ================= SIDEBAR OVERLAY ================= -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- ================= HEADER ================= -->
+<header class="main-header">
+  <div class="header-center">
+    <h2>🛡 CyberMastery</h2>
+  </div>
+  
+ {% if not hide_nav %}
+
+
+  <nav class="header-nav" id="header-nav">
+    <a href="/" class="nav-link">🏠 Home</a>
+
+    {% if current_user.is_authenticated %}
+      <a href="/dashboard" class="nav-link">Dashboard</a>
+      <a href="/missions" class="nav-link">Missions</a>
+      <a href="/multiplayer" class="nav-link">🎮 Challenges</a>
+      <a href="{% if current_user.role == 'student' %}{{ url_for('student_leaderboard') }}{% elif current_user.role == 'employee' %}{{ url_for('employee_leaderboard') }}{% else %}#{% endif %}" class="nav-link">Leaderboard</a>
+      <a href="/logout" class="nav-link">Logout</a>
+    {% else %}
+      <a href="/login" class="nav-link">Login</a>
+      <a href="/register" class="nav-link">Register</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+</header>
+
+<!-- ================= MAIN ================= -->
+<main class="main-content">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- ================= NEW AI CHATBOT ================= -->
+<div id="cyberbot-toggle" title="Ask CyberBot AI">🤖</div>
+
+<div id="cyberbot-container">
+  <div class="cyberbot-header">
+    <div class="cyberbot-title">
+      <i class="fas fa-robot"></i>
+      <span>CyberBot AI</span>
+    </div>
+    <div class="cyberbot-status">
+      <i class="fas fa-circle text-success"></i>
+      <span>Online</span>
+    </div>
+    <button class="cyberbot-close" onclick="closeCyberBot()">✖</button>
+  </div>
+
+  <div class="cyberbot-messages" id="cyberbot-messages">
+    <div class="message bot">
+      <div class="message-content">
+        👋 Hello! I'm CyberBot, your AI assistant for CyberMastery! 🎮
+        <br><br>
+        I can help you with:
+        <br><br>
+        🎯 <strong>Game Mechanics:</strong> Missions, levels, XP, badges, escape rooms
+        <br>
+        🎮 <strong>Multiplayer Challenges:</strong> Real-time competitions, 10-minute battles, 150 XP rewards
+        <br>
+        📚 <strong>Learning Modules:</strong> 5 modules per mission to unlock content
+        <br>
+        🛡️ <strong>Cybersecurity Topics:</strong> Phishing, passwords, browsing safety, social media
+        <br>
+        🏆 <strong>Progress Tracking:</strong> Your learning journey and achievements
+        <br><br>
+        <strong>Ask me anything about CyberMastery or cybersecurity!</strong> 🔍
+      </div>
+      <div class="message-time">Just now</div>
+    </div>
+  </div>
+
+  <div class="cyberbot-typing" id="cyberbot-typing" style="display: none;">
+    <div class="typing-dots">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+    <small>CyberBot is thinking...</small>
+  </div>
+
+  <div class="cyberbot-quick-actions">
+    <button class="quick-btn" style="color: #333 !important;" onclick="quickQuestion('How do missions work?')">
+      Missions
+    </button>
+    <button class="quick-btn" style="color: #333 !important;" onclick="quickQuestion('What are learning modules?')">
+      Modules
+    </button>
+    <button class="quick-btn" style="color: #333 !important;" onclick="quickQuestion('How do I earn XP?')">
+      XP
+    </button>
+    <button class="quick-btn" style="color: #333 !important;" onclick="quickQuestion('What is phishing?')">
+      Phishing
+    </button>
+    <button class="quick-btn" style="color: #333 !important;" onclick="quickQuestion('How do badges work?')">
+      Badges
+    </button>
+    <button class="quick-btn" style="color: #333 !important;" onclick="quickQuestion('How do multiplayer challenges work?')">
+      Challenges
+    </button>
+  </div>
+
+  <div class="cyberbot-input">
+    <input type="text" id="cyberbot-input" placeholder="Ask about this app..." maxlength="500">
+    <button id="cyberbot-send" onclick="sendCyberBotMessage()">
+      <i class="fas fa-paper-plane"></i>
+    </button>
+  </div>
+</div>
+
+<!-- ================= HELP BUTTON ================= -->
+<div id="help-toggle" title="How this app works">❓</div>
+
+<div id="help-box">
+  <div class="help-header">
+    <div class="help-title">
+      <i class="fas fa-question-circle"></i>
+      <span>How CyberMastery Works</span>
+    </div>
+    <button class="help-close" onclick="closeHelp()">✖</button>
+  </div>
+  
+  <div class="help-content" style="color: #333 !important;">
+    <div class="help-section">
+      <h4 style="color: #16a34a !important;">📘 Learning Phase</h4>
+      <p style="color: #333 !important;">Complete learning modules to understand cybersecurity concepts and prepare for missions.</p>
+    </div>
+    
+    <div class="help-section">
+      <h4 style="color: #16a34a !important;">🎯 Mission Phase</h4>
+      <p style="color: #333 !important;">Complete 10 levels per mission to unlock escape rooms. Each level gives XP based on attempts:</p>
+      <ul class="help-list">
+        <li style="color: #333 !important;"><span class="xp-badge">+10 XP</span> First attempt correct</li>
+        <li style="color: #333 !important;"><span class="xp-badge">+5 XP</span> Second attempt correct</li>
+        <li style="color: #333 !important;"><span class="xp-badge">+2 XP</span> Third+ attempt correct</li>
+        <li style="color: #333 !important;"><span class="xp-penalty">-3 XP</span> Any wrong answer</li>
+      </ul>
+    </div>
+    
+    <div class="help-section">
+      <h4 style="color: #16a34a !important;">� Multiplayer Challenges</h4>
+      <p style="color: #333 !important;">Compete against other players in real-time cybersecurity challenges!</p>
+      <ul class="help-list">
+        <li style="color: #333 !important;"><span class="xp-badge">+150 XP</span> Winner of multiplayer challenge</li>
+        <li style="color: #333 !important;">🎯 Create challenge room with 6-character code</li>
+        <li style="color: #333 !important;">⏱️ 10-minute timer for each challenge</li>
+        <li style="color: #333 !important;">🎮 Both players get same 10 missions</li>
+        <li style="color: #333 !important;">🏆 Winner determined by highest score</li>
+        <li style="color: #333 !important;">⏳ Wait for both players to complete</li>
+        <li style="color: #333 !important;">📊 Real-time progress tracking</li>
+      </ul>
+    </div>
+    
+    <div class="help-section">
+      <h4 style="color: #16a34a !important;">�� Escape Room Phase</h4>
+      <p style="color: #333 !important;">Solve cybersecurity puzzles to complete missions. Higher rewards for accuracy:</p>
+      <ul class="help-list">
+        <li style="color: #333 !important;"><span class="xp-badge">+50 XP</span> First attempt escape</li>
+        <li style="color: #333 !important;"><span class="xp-badge">+30 XP</span> Second attempt escape</li>
+        <li style="color: #333 !important;"><span class="xp-badge">+10 XP</span> Third+ attempt escape</li>
+        <li style="color: #333 !important;"><span class="xp-penalty">-3 XP</span> Wrong answers</li>
+        <li style="color: #333 !important;"><span class="xp-info">No XP</span> Replaying completed rooms</li>
+      </ul>
+    </div>
+    
+    <div class="help-section">
+      <h4 style="color: #16a34a !important;">🏅 Badge System</h4>
+      <p style="color: #333 !important;">Earn badges by completing missions:</p>
+      <ul class="help-list">
+        <li style="color: #333 !important;"><span class="badge-beginner">🏆 Cyber Beginner</span> Complete 2 missions (+20 XP)</li>
+        <li style="color: #333 !important;"><span class="badge-expert">🏆 Cyber Expert</span> Complete 5 missions (+50 XP)</li>
+      </ul>
+    </div>
+    
+    <div class="help-section">
+      <h4 style="color: #16a34a !important;">🏆 Competition</h4>
+      <p style="color: #333 !important;">Compete on leaderboards and climb the ranks with your XP!</p>
+    </div>
+  </div>
+</div>
+
+<!-- ================= NEW AI CHATBOT + HELP JS ================= -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const cyberbotContainer = document.getElementById("cyberbot-container");
+  const helpBox = document.getElementById("help-box");
+  const hamburgerMenu = document.getElementById("hamburger-menu");
+  const sidebar = document.getElementById("sidebar");
+  const sidebarOverlay = document.getElementById("sidebar-overlay");
+
+  // Hamburger menu functionality
+  hamburgerMenu.addEventListener("click", () => {
+    toggleSidebar();
+  });
+
+  document.getElementById("cyberbot-toggle").addEventListener("click", () => {
+    cyberbotContainer.style.display = cyberbotContainer.style.display === "flex" ? "none" : "flex";
+  });
+
+  document.getElementById("help-toggle").addEventListener("click", () => {
+    helpBox.style.display = "block";
+  });
+
+  window.closeCyberBot = () => {
+    cyberbotContainer.style.display = "none";
+  };
+
+  window.closeHelp = () => {
+    helpBox.style.display = "none";
+  };
+
+  window.toggleSidebar = () => {
+    hamburgerMenu.classList.toggle("active");
+    sidebar.classList.toggle("active");
+    sidebarOverlay.classList.toggle("active");
+  };
+
+  // Enter key support for chatbot
+  document.getElementById("cyberbot-input").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      sendCyberBotMessage();
+    }
+  });
+});
+
+function addCyberBotMessage(content, sender, time) {
+  const messagesContainer = document.getElementById("cyberbot-messages");
+  const messageDiv = document.createElement("div");
+  messageDiv.className = `message ${sender}`;
+  
+  const contentDiv = document.createElement("div");
+  contentDiv.className = "message-content";
+  contentDiv.innerHTML = content.replace(/\n/g, "<br>");
+  
+  const timeDiv = document.createElement("div");
+  timeDiv.className = "message-time";
+  timeDiv.textContent = time || new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  
+  messageDiv.appendChild(contentDiv);
+  messageDiv.appendChild(timeDiv);
+  messagesContainer.appendChild(messageDiv);
+  
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function showCyberBotTyping() {
+  document.getElementById("cyberbot-typing").style.display = "block";
+  document.getElementById("cyberbot-messages").scrollTop = document.getElementById("cyberbot-messages").scrollHeight;
+}
+
+function hideCyberBotTyping() {
+  document.getElementById("cyberbot-typing").style.display = "none";
+}
+
+function quickQuestion(question) {
+  document.getElementById("cyberbot-input").value = question;
+  sendCyberBotMessage();
+}
+
+function sendCyberBotMessage() {
+  const input = document.getElementById("cyberbot-input");
+  const message = input.value.trim();
+  
+  if (!message) return;
+  
+  addCyberBotMessage(message, "user");
+  input.value = "";
+  showCyberBotTyping();
+  
+  fetch("/chatbot", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ message: message })
+  })
+  .then(response => response.json())
+  .then(data => {
+    hideCyberBotTyping();
+    addCyberBotMessage(data.reply, "bot");
+  })
+  .catch(error => {
+    hideCyberBotTyping();
+    addCyberBotMessage("Sorry, I encountered an error. Please try again.", "bot");
+    console.error("Error:", error);
+  });
+}
+</script>
+</body>
+</html>

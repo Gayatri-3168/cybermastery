@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="home-container">
+
+  <h1>CyberMastery Gamification Platform</h1>
+
+  <p>
+    CyberMastery is an interactive cybersecurity learning platform designed to
+    improve awareness through gamification.
+ 
+
+ 
+    The platform provides role-based learning paths for students and employees,
+    ensuring that users receive training relevant to their environment and skill level.
+  
+    Users progress through structured missions and levels, earn experience points,
+    unlock badges, and build cybersecurity knowledge in an engaging way.
+  </p>
+
+  {% if not current_user.is_authenticated %}
+    <div class="home-actions">
+      <a href="/register">
+        <button>Get Started</button>
+      </a>
+      <a href="/login">
+        <button class="secondary">Login</button>
+      </a>
+    </div>
+  {% endif %}
+
+</div>
+
+{% endblock %}
+

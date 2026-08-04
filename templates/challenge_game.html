@@ -1,0 +1,1083 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="challenge-game-page">
+  
+  <div class="game-header">
+    <h1>🎮 Cyber Challenge Arena</h1>
+    <div class="challenge-info">
+      <span class="challenge-code">Code: {{ code }}</span>
+      <span class="timer" id="timer">10:00</span>
+    </div>
+  </div>
+
+  <div class="game-layout">
+    
+    <!-- LEFT: CURRENT MISSION -->
+    <div class="mission-panel">
+      <div class="mission-header">
+        <h3>Mission <span id="current-mission">1</span> </h3>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill" style="width: 10%"></div>
+        </div>
+      </div>
+      
+      <div id="mission-content" class="mission-content">
+        <div class="loading">Loading mission...</div>
+      </div>
+      
+      <div class="mission-actions">
+        <form id="mission-form" class="mission-form">
+          <div id="answer-options"></div>
+          <button type="submit" class="btn btn-success" id="submit-btn">Submit Answer</button>
+        </form>
+      </div>
+      
+      <div id="mission-result" class="mission-result"></div>
+    </div>
+
+    <!-- RIGHT: PLAYERS STATUS -->
+    <div class="players-panel">
+      <h3>👥 Players</h3>
+      <div id="players-list" class="players-list">
+        <div class="loading">Loading players...</div>
+      </div>
+      
+      <div class="game-status">
+        <h4>Game Status</h4>
+        <div id="status-info">
+          <p>Waiting for players...</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- COMPLETION MODAL -->
+  <div id="completion-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🎉 Challenge Complete!</h2>
+      </div>
+      <div class="modal-body">
+        <div id="winner-info"></div>
+        <div id="final-scores"></div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="window.location.href='/multiplayer'" class="btn btn-primary">Back to Challenges</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentMissionNumber = 1;
+let timerInterval = null;
+let timeRemaining = 600; // 10 minutes in seconds
+let currentChallengeCode = '{{ code }}';
+
+// Initialize game
+document.addEventListener('DOMContentLoaded', function() {
+  loadMission(1);
+  startTimer();
+  startStatusMonitoring();
+});
+
+// Load Mission
+async function loadMission(missionNumber) {
+  try {
+    const response = await fetch(`/get-mission/${currentChallengeCode}/${missionNumber}`);
+    const result = await response.json();
+    
+    if (result.status === 'success') {
+      displayMission(result.mission);
+      currentMissionNumber = missionNumber;
+      updateProgress();
+    } else {
+      console.error('Failed to load mission:', result.message);
+      document.getElementById('mission-content').innerHTML = `
+        <div class="error-message">
+          ❌ Failed to load mission: ${result.message}
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.error('Error loading mission:', error);
+    document.getElementById('mission-content').innerHTML = `
+      <div class="error-message">
+        ❌ Error loading mission
+      </div>
+    `;
+  }
+}
+
+// Display Mission
+function displayMission(mission) {
+  const missionContent = document.getElementById('mission-content');
+  const missionData = mission.data;
+  
+  let missionHTML = `
+    <div class="mission-scenario">
+      <div class="scenario-header">
+        <span class="scenario-icon">🚨</span>
+        <h4>${missionData.scenario}</h4>
+      </div>
+      <div class="scenario-task">
+        <p><strong>TASK:</strong> ${missionData.task}</p>
+      </div>
+    </div>
+  `;
+  
+  // Add mission-specific content
+  if (mission.type === 'phishing_detection' && missionData.email) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>📧 Email Analysis:</h6>
+        <div class="email-content">
+          <pre>${missionData.email}</pre>
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'malware_response' && missionData.alert) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>🦠 Ransomware Alert:</h6>
+        <div class="alert-content">
+          <pre>${missionData.alert}</pre>
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'password_security' && missionData.passwords) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>🔐 Password Audit Results:</h6>
+        <div class="password-list">
+          ${missionData.passwords.map(pwd => `<div class="password-item">${pwd}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  } else if (mission.type === 'social_engineering' && missionData.call) {
+    missionHTML += `
+      <div class="mission-content-box">
+        <h6>📞 Phone Call Transcript:</h6>
+        <div class="call-content">
+          <div class="call-bubble">${missionData.call}</div>
+        </div>
+      </div>
+    `;
+  }
+  // Add more mission types as needed...
+  
+  // Add answer options
+  if (missionData.options) {
+    missionHTML += `
+      <div class="answer-options">
+        ${missionData.options.map((option, index) => `
+          <label class="option-label">
+            <input type="radio" name="answer" value="${option}" required>
+            <span class="option-text">${option}</span>
+          </label>
+        `).join('')}
+      </div>
+    `;
+  } else {
+    missionHTML += `
+      <div class="answer-options">
+        <input type="text" name="answer" placeholder="Enter your answer..." required>
+      </div>
+    `;
+  }
+  
+  missionContent.innerHTML = missionHTML;
+  
+  // Add submit handler after form is created
+  const form = document.getElementById('mission-form');
+  if (form) {
+    form.addEventListener('submit', submitMissionAnswer);
+  }
+}
+
+// Submit Mission Answer
+async function submitMissionAnswer(e) {
+  e.preventDefault();
+  
+  // Check if any radio button is selected or text input has value
+  const selectedRadio = document.querySelector('input[name="answer"]:checked');
+  const textInput = document.querySelector('input[name="answer"][type="text"]');
+  const textValue = textInput ? textInput.value.trim() : '';
+  
+  console.log('🔍 Selected radio:', selectedRadio);
+  console.log('🔍 Text input value:', textValue);
+  
+  // Get the answer value
+  let answer = null;
+  if (selectedRadio) {
+    answer = selectedRadio.value;
+  } else if (textValue) {
+    answer = textValue;
+  }
+  
+  console.log('📝 Final answer:', answer);
+  
+  // Handle case where answer might be null or undefined
+  if (answer === null || answer === undefined || answer === '') {
+    const resultDiv = document.getElementById('mission-result');
+    resultDiv.innerHTML = `
+      <div class="error-message">
+        ❌ Please select an answer before submitting
+      </div>
+    `;
+    return;
+  }
+  
+  // Create form data with the answer
+  const formData = new FormData();
+  formData.append('answer', answer);
+  
+  // Debug: Log the form data
+  console.log('🔍 Form data:', Array.from(formData.entries()));
+  console.log('📝 Answer received:', answer);
+  
+  // Convert answer to string and trim whitespace
+  answer = String(answer).trim();
+  console.log('📝 Processed answer:', answer);
+  
+  // Disable submit button
+  const submitBtn = document.getElementById('submit-btn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Submitting...';
+  
+  try {
+    const response = await fetch(`/submit-mission/${currentChallengeCode}/${currentMissionNumber}`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    const result = await response.json();
+    const resultDiv = document.getElementById('mission-result');
+    
+    if (result.status === 'success') {
+      if (result.correct) {
+        resultDiv.innerHTML = `
+          <div class="success-message">
+            ✅ Correct! +1 point
+            ${result.explanation ? `<div class="explanation">${result.explanation}</div>` : ''}
+          </div>
+        `;
+      } else {
+        resultDiv.innerHTML = `
+          <div class="error-message">
+            ❌ Incorrect answer
+            ${result.explanation ? `<div class="explanation">${result.explanation}</div>` : ''}
+          </div>
+        `;
+      }
+      
+      // Update score display
+      updateScoreDisplay(result.score);
+      
+      // Load next mission or show completion
+      if (result.next_mission) {
+        setTimeout(() => {
+          loadMission(result.next_mission);
+        }, 3000);
+      } else if (result.is_completed) {
+        // Don't show completion immediately - wait for both players
+        showWaitingForOtherPlayer();
+      }
+    } else {
+      resultDiv.innerHTML = `
+        <div class="error-message">
+          ❌ ${result.message}
+        </div>
+      `;
+    }
+  } catch (error) {
+    const resultDiv = document.getElementById('mission-result');
+    resultDiv.innerHTML = `
+      <div class="error-message">
+        ❌ Failed to submit answer: ${error.message}
+      </div>
+    `;
+  } finally {
+    // Re-enable submit button
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit Answer';
+  }
+}
+
+// Update Score Display
+function updateScoreDisplay(score) {
+  // Update score in UI if needed
+  console.log('Current score:', score);
+}
+
+// Show Waiting for Other Player
+function showWaitingForOtherPlayer() {
+  const missionContent = document.getElementById('mission-content');
+  missionContent.innerHTML = `
+    <div class="completion-message">
+      <h3>🎉 You've completed all 10 missions!</h3>
+      <p>Waiting for the other player to finish...</p>
+      <div class="waiting-animation">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  `;
+  
+  // Hide the submit button
+  const submitBtn = document.getElementById('submit-btn');
+  if (submitBtn) {
+    submitBtn.style.display = 'none';
+  }
+  
+  // Start checking if both players are completed
+  checkBothPlayersCompleted();
+}
+
+// Check if both players are completed
+function checkBothPlayersCompleted() {
+  const checkInterval = setInterval(async () => {
+    try {
+      const response = await fetch(`/challenge-status/${currentChallengeCode}`);
+      const result = await response.json();
+      
+      if (result.status === 'success') {
+        const allCompleted = result.participants.every(p => p.is_completed);
+        
+        if (allCompleted) {
+          clearInterval(checkInterval);
+          showCompletion();
+        }
+      }
+    } catch (error) {
+      console.error('Error checking completion status:', error);
+    }
+  }, 3000); // Check every 3 seconds
+}
+
+// Show Completion
+function showCompletion() {
+  const modal = document.getElementById('completion-modal');
+  modal.style.display = 'block';
+  
+  // Load final results
+  loadFinalResults();
+}
+
+// Load Final Results
+async function loadFinalResults() {
+  try {
+    const response = await fetch(`/challenge-status/${currentChallengeCode}`);
+    const result = await response.json();
+    
+    if (result.status === 'success') {
+      displayFinalResults(result.participants, result.challenge);
+    }
+  } catch (error) {
+    console.error('Error loading final results:', error);
+  }
+}
+
+// Display Final Results
+function displayFinalResults(participants, challenge) {
+  const winnerInfo = document.getElementById('winner-info');
+  const finalScores = document.getElementById('final-scores');
+  
+  // Find winner
+  const winner = participants.reduce((prev, current) => 
+    (prev.score > current.score) ? prev : current
+  );
+  
+  winnerInfo.innerHTML = `
+    <div class="winner-announcement">
+      <h3>🏆 Winner: ${winner.username}</h3>
+      <p>Score: ${winner.score}/10</p>
+      <p>Earned 150 XP!</p>
+    </div>
+  `;
+  
+  finalScores.innerHTML = `
+    <h4>Final Scores:</h4>
+    ${participants.map(p => `
+      <div class="final-score-item">
+        <span class="player-name">${p.username}</span>
+        <span class="score">${p.score}/10</span>
+      </div>
+    `).join('')}
+  `;
+}
+
+// Update Progress
+function updateProgress() {
+  // Show current mission number for display (1-10)
+  const displayMission = Math.max(1, Math.min(currentMissionNumber, 10));
+  const progress = (displayMission / 10) * 100;
+  document.getElementById('progress-fill').style.width = `${progress}%`;
+  document.getElementById('current-mission').textContent = `${displayMission}/10`;
+}
+
+// Start Timer
+function startTimer() {
+  timerInterval = setInterval(() => {
+    if (timeRemaining > 0) {
+      timeRemaining--;
+      updateTimerDisplay();
+    } else {
+      clearInterval(timerInterval);
+      showTimeUp();
+    }
+  }, 1000);
+}
+
+// Update Timer Display
+function updateTimerDisplay() {
+  const minutes = Math.floor(timeRemaining / 60);
+  const seconds = timeRemaining % 60;
+  const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  
+  const timerElement = document.getElementById('timer');
+  if (timerElement) {
+    timerElement.textContent = display;
+    
+    // Add warning class when time is running low
+    if (timeRemaining < 60) {
+      timerElement.classList.add('timer-warning');
+    } else {
+      timerElement.classList.remove('timer-warning');
+    }
+  }
+}
+
+// Show Time Up
+function showTimeUp() {
+  const timerElement = document.getElementById('timer');
+  if (timerElement) {
+    timerElement.textContent = "TIME'S UP!";
+    timerElement.classList.add('timer-expired');
+  }
+  
+  // Disable submit button
+  const submitBtn = document.getElementById('submit-btn');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Time Expired';
+  }
+  
+  // Show waiting message instead of immediate completion
+  const missionContent = document.getElementById('mission-content');
+  missionContent.innerHTML = `
+    <div class="completion-message">
+      <h3>⏰ Time's up!</h3>
+      <p>Waiting for the other player to finish...</p>
+      <div class="waiting-animation">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  `;
+  
+  // Start checking if both players are completed
+  checkBothPlayersCompleted();
+}
+
+// Start Status Monitoring
+function startStatusMonitoring() {
+  loadPlayers(); // Initial load
+  setInterval(loadPlayers, 5000); // Update every 5 seconds
+}
+
+// Load Players
+async function loadPlayers() {
+  try {
+    const response = await fetch(`/challenge-status/${currentChallengeCode}`);
+    const result = await response.json();
+    
+    if (result.status === 'success') {
+      const playersList = document.getElementById('players-list');
+      const participants = result.participants;
+      
+      if (participants.length === 0) {
+        playersList.innerHTML = '<p class="no-players">No players yet</p>';
+      } else {
+        playersList.innerHTML = participants.map(p => `
+          <div class="player-item">
+            <div class="player-name">${p.username}</div>
+            <div class="player-stats">
+              <span class="score">Score: ${p.score}</span>
+              <span class="mission">Mission: ${Math.min(p.current_mission, 10)}/10</span>
+              ${p.is_completed ? '<span class="completed">✅ Completed</span>' : ''}
+            </div>
+          </div>
+        `).join('');
+      }
+      
+      // Update status info
+      const statusInfo = document.getElementById('status-info');
+      statusInfo.innerHTML = `
+        <p><strong>Status:</strong> ${result.challenge.status}</p>
+        <p><strong>Players:</strong> ${participants.length}/2</p>
+        ${result.challenge.time_remaining !== null ? 
+          `<p><strong>Time Remaining:</strong> ${Math.floor(result.challenge.time_remaining / 60)}:${(result.challenge.time_remaining % 60).toString().padStart(2, '0')}</p>` : 
+          '<p><strong>Time Remaining:</strong> --:--</p>'
+        }
+      `;
+    }
+  } catch (error) {
+    console.error('Failed to load players:', error);
+  }
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+  const modal = document.getElementById('completion-modal');
+  if (event.target === modal) {
+    modal.style.display = 'none';
+  }
+}
+</script>
+
+<style>
+.challenge-game-page {
+  min-height: 100vh;
+  background: #f8fafc;
+  padding: 20px;
+  position: relative;
+}
+
+.game-header {
+  text-align: center;
+  color: #1f2937;
+  margin-bottom: 30px;
+}
+
+.game-header h1 {
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 15px;
+}
+
+.challenge-info {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  align-items: center;
+}
+
+.challenge-code {
+  background: #ffffff;
+  border: 2px solid #e5e7eb;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: #1f2937;
+}
+
+.timer {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  min-width: 80px;
+  text-align: center;
+}
+
+.timer-warning {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  animation: pulse 1s infinite;
+}
+
+.timer-expired {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.game-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 30px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.mission-panel, .players-panel {
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 30px;
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+.mission-header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.mission-header h3 {
+  color: #1f2937;
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  transition: width 0.5s ease;
+  border-radius: 10px;
+}
+
+.mission-content {
+  min-height: 300px;
+  margin-bottom: 25px;
+}
+
+.mission-scenario {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: white;
+  padding: 25px;
+  border-radius: 15px;
+  margin-bottom: 20px;
+  border: 2px solid #b91c1c;
+}
+
+.scenario-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  gap: 12px;
+}
+
+.scenario-icon {
+  font-size: 28px;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-10px); }
+  60% { transform: translateY(-5px); }
+}
+
+.scenario-header h4 {
+  color: white;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.scenario-task p {
+  margin: 0;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.scenario-task strong {
+  color: #fef3c7;
+}
+
+.mission-content-box {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.mission-content-box h6 {
+  color: #374151;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.email-content {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.email-content pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: #495057;
+  margin: 0;
+  background: #ffffff;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+.answer-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.option-label {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.option-label:hover {
+  background: rgba(59,130,246,0.1);
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+}
+
+.option-label input[type="radio"] {
+  margin-right: 12px;
+  width: 18px;
+  height: 18px;
+  accent-color: #3b82f6;
+}
+
+.option-label input[type="text"] {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 15px;
+  background: rgba(255,255,255,0.9);
+}
+
+.option-text {
+  color: #1f2937;
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.mission-actions {
+  text-align: center;
+}
+
+.btn {
+  padding: 15px 30px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  box-shadow: 0 4px 15px rgba(34,197,94,0.3);
+}
+
+.btn-success:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(34,197,94,0.4);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mission-result {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.success-message {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  border: 1px solid #16a34a;
+  box-shadow: 0 4px 15px rgba(34,197,94,0.2);
+}
+
+.error-message {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border: 1px solid #dc2626;
+  box-shadow: 0 4px 15px rgba(239,68,68,0.2);
+}
+
+.explanation {
+  margin-top: 15px;
+  padding: 15px;
+  background: rgba(34,197,94,0.1);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1f2937;
+  border-left: 4px solid #22c55e;
+}
+
+.players-panel h3 {
+  color: #1f2937;
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.player-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  margin-bottom: 10px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+  border-left: 4px solid #3b82f6;
+}
+
+.player-name {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 15px;
+}
+
+.player-stats {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  align-items: center;
+}
+
+.score {
+  background: #3b82f6;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.mission {
+  background: #6b7280;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.completed {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.game-status {
+  margin-top: 30px;
+  padding: 20px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 15px;
+}
+
+.game-status h4 {
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+.game-status p {
+  margin: 8px 0;
+  color: #374151;
+}
+
+.loading {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 30px;
+}
+
+.no-players {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 30px;
+}
+
+.waiting-animation {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255,255,255,0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.completion-message {
+  text-align: center;
+  padding: 40px;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  border-radius: 15px;
+  font-size: 18px;
+  font-weight: 600;
+  box-shadow: 0 8px 25px rgba(34,197,94,0.3);
+}
+
+/* Modal Styles */
+.modal {
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+  backdrop-filter: blur(5px);
+}
+
+.modal-content {
+  background: white;
+  margin: 10% auto;
+  padding: 0;
+  border-radius: 20px;
+  width: 80%;
+  max-width: 500px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  padding: 25px;
+  border-radius: 20px 20px 0 0;
+  text-align: center;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 30px;
+}
+
+.winner-announcement {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.winner-announcement h3 {
+  color: #1f2937;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.winner-announcement p {
+  color: #374151;
+  margin: 5px 0;
+}
+
+.final-scores h4 {
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+.final-score-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  margin-bottom: 8px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 8px;
+}
+
+.modal-footer {
+  padding: 20px;
+  text-align: center;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .game-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .mission-panel, .players-panel {
+    padding: 20px;
+  }
+  
+  .game-header h1 {
+    font-size: 28px;
+  }
+  
+  .challenge-info {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .timer {
+    align-self: center;
+  }
+}
+</style>
+{% endblock %}
